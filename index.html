@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<h1 id="header"></h1>
+<div id="container" style="width: 100%;"></div>
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script type="module">
+import fss from "/fss/fss.js";
+import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm";
+
+const header = document.querySelector("#header");
+const div = document.querySelector("#container");
+const rect = div.getBoundingClientRect();
+
+fss.query(data => {
+  header.innerHTML = data["list"].root;
+}, ["list"]);
+
+fss.with_data(csv => {
+  let first = true;
+  const data = d3.csvParse(csv, d => {
+    if (first) {
+      console.log(d);
+      first = false;
+    }
+
+    return {
+      op_code: d["OP CODE"],
+      op_type: d["OP TYPE"],
+      global_id: parseInt(d["GLOBAL CALL COUNT"]),
+      kernel_duration: parseInt(d["DEVICE KERNEL DURATION [ns]"]),
+    };
+  }).filter(e => e.op_type === "tt_dnn_device");
+
+  let elapsed = data.reduce((a, e) => a + e.kernel_duration, 0);
+  console.log(data);
+  console.log(elapsed);
+  console.log((1e9 * 2) / elapsed);
+
+  div.append(
+    Plot.plot({
+      marginLeft: 60,
+      title: "Total Execution",
+      width: rect.width,
+      color: {legend: true},
+      marks: [
+        Plot.rectX(data, {y: "global_id", x: "kernel_duration", fill: "op_code"})
+      ]
+    })
+  );
+
+  div.append(
+    Plot.plot({
+      marginLeft: 200,
+      title: "By op_code",
+      color: {legend: true},
+      marks: [
+        Plot.rectX(data, {y: "op_code", x: "kernel_duration", fill: "op_code"})
+      ]
+    })
+  );
+});
+</script>
